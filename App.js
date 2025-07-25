@@ -27,7 +27,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    buscarClima(); // busca clima inicial (Recife)
+    buscarClima(); // busca do clima inicial (Recife)
   }, []);
 
   return (
