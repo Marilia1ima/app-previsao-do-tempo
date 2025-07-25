@@ -1,114 +1,235 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, StyleSheet, TouchableOpacity, Keyboard, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, StyleSheet, FlatList, Keyboard, StatusBar, ScrollView } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function App() {
-  const [cidade, setCidade] = useState('Recife');
+  const [cidade, setCidade] = useState('Fortaleza');
   const [busca, setBusca] = useState('');
   const [dados, setDados] = useState(null);
-  const [carregando, setCarregando] = useState(false);
 
-  async function buscarClima() {
-    if (!busca.trim()) return;
-
-    setCarregando(true);
-    Keyboard.dismiss();
-
+  async function buscarClima(cidadeNome = cidade) {
     try {
-      const response = await fetch(`https://api.hgbrasil.com/weather?key=3f63e20f&city_name=${busca}`);
+      const response = await fetch(`https://api.hgbrasil.com/weather?key=3f63e20f&city_name=${cidadeNome}`);
       const json = await response.json();
       setDados(json.results);
-      setCidade(busca);
+      setCidade(cidadeNome);
       setBusca('');
+      Keyboard.dismiss();
     } catch (error) {
-      console.error("Erro ao buscar clima:", error);
+      console.error('Erro ao buscar dados da API:', error);
     }
-
-    setCarregando(false);
   }
 
   useEffect(() => {
-    buscarClima(); // busca do clima inicial (Recife)
+    buscarClima();
   }, []);
 
+  const previsaoHoras = [
+    { hora: '15:00', temp: '29°C', icone: '🌤️' },
+    { hora: '16:00', temp: '26°C', icone: '⛅' },
+    { hora: '17:00', temp: '24°C', icone: '☁️' },
+    { hora: '18:00', temp: '23°C', icone: '🌧️' },
+  ];
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.titulo}>☀️ Previsão do Tempo</Text>
+    <LinearGradient colors={['#1e3c72', '#2a5298']} style={styles.container}>
+      <StatusBar barStyle="light-content" />
 
-      <TextInput
-        style={styles.input}
-        placeholder="Digite a cidade..."
-        value={busca}
-        onChangeText={setBusca}
-      />
+      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingBottom: 40 }}>
+        <TextInput
+          style={styles.input}
+          placeholder="Digite a cidade"
+          placeholderTextColor="#ccc"
+          value={busca}
+          onChangeText={setBusca}
+          onSubmitEditing={() => buscarClima(busca)}
+        />
 
-      <TouchableOpacity style={styles.botao} onPress={buscarClima}>
-        <Text style={styles.textoBotao}>Buscar</Text>
-      </TouchableOpacity>
+        {dados && (
+          <>
+            <Text style={styles.cidade}>
+              {dados.city}, {dados.city_name.includes(',') ? dados.city_name.split(',')[1] : 'BR'}
+            </Text>
 
-      {carregando && <ActivityIndicator size="large" color="#00aaff" style={{ marginTop: 20 }} />}
+            <Text style={styles.icone}>🌤️</Text>
 
-      {dados && (
-        <View style={styles.resultado}>
-          <Text style={styles.info}>🌆 Cidade: {dados.city}</Text>
-          <Text style={styles.info}>🌡️ Temperatura: {dados.temp}°C</Text>
-          <Text style={styles.info}>🌤️ Condição: {dados.description}</Text>
-          <Text style={styles.info}>💧 Umidade: {dados.humidity}%</Text>
-          <Text style={styles.info}>🌬️ Vento: {dados.wind_speedy}</Text>
-        </View>
-      )}
-    </View>
+            <Text style={styles.temperatura}>{dados.temp}°</Text>
+            <Text style={styles.maxmin}>
+              Max: {dados.forecast[0].max}°   Min: {dados.forecast[0].min}°
+            </Text>
+
+            <View style={styles.infoBox}>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>💧</Text>
+                <Text style={styles.infoText}>{dados.humidity}%</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>🌬️</Text>
+                <Text style={styles.infoText}>{dados.wind_speedy}</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.infoIcon}>☁️</Text>
+                <Text style={styles.infoText}>{dados.cloudiness || 'N/A'}</Text>
+              </View>
+            </View>
+
+            <Text style={styles.today}>Today</Text>
+
+            <FlatList
+              data={previsaoHoras}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.lista}
+              contentContainerStyle={{ gap: 16, paddingHorizontal: 10 }}
+              keyExtractor={(item, index) => index.toString()}
+              renderItem={({ item }) => (
+                <View style={styles.card}>
+                  <Text style={styles.cardHora}>{item.hora}</Text>
+                  <Text style={styles.cardTemp}>{item.temp}</Text>
+                  <Text style={styles.cardIcone}>{item.icone}</Text>
+                </View>
+              )}
+            />
+
+            <View style={styles.nextForecast}>
+              <Text style={styles.nextTitle}>Next Forecast</Text>
+              <View style={styles.nextCard}>
+                <Text style={styles.nextDay}>{dados.forecast[1].weekday}</Text>
+                <Text style={styles.nextIcon}>🌦️</Text>
+                <Text style={styles.nextTemp}>
+                  {dados.forecast[1].min}° / {dados.forecast[1].max}°
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d0e8f2',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
     paddingTop: 80,
-    paddingHorizontal: 20
-  },
-  titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 30,
-    color: '#333'
   },
   input: {
-    width: '100%',
-    backgroundColor: '#fff',
-    borderRadius: 10,
+    width: '90%',
+    backgroundColor: '#ffffff20',
+    borderRadius: 12,
     padding: 12,
     fontSize: 16,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#ccc'
-  },
-  botao: {
-    backgroundColor: '#00aaff',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 10
-  },
-  textoBotao: {
     color: '#fff',
-    fontSize: 16
+    marginBottom: 20,
+    borderColor: '#fff',
+    borderWidth: 1,
   },
-  resultado: {
-    marginTop: 30,
-    backgroundColor: '#fff',
-    padding: 20,
-    borderRadius: 12,
-    width: '100%',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 5
+  cidade: {
+    fontSize: 22,
+    color: '#fff',
+    marginBottom: 8,
+    fontWeight: '600',
   },
-  info: {
-    fontSize: 18,
+  icone: {
+    fontSize: 64,
     marginBottom: 10,
-    color: '#333'
-  }
+  },
+  temperatura: {
+    fontSize: 64,
+    color: '#fff',
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  maxmin: {
+    color: '#ccc',
+    fontSize: 16,
+    marginBottom: 20,
+  },
+  infoBox: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    width: '90%',
+    marginBottom: 30,
+  },
+  infoItem: {
+    alignItems: 'center',
+  },
+  infoIcon: {
+    fontSize: 20,
+    color: '#fff',
+  },
+  infoText: {
+    color: '#fff',
+    marginTop: 4,
+    fontSize: 16,
+  },
+  today: {
+    fontSize: 20,
+    color: '#fff',
+    alignSelf: 'flex-start',
+    marginLeft: 20,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+  lista: {
+    width: '100%',
+    marginBottom: 30,
+  },
+  card: {
+    backgroundColor: '#ffffff20',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    width: 95,
+    height: 140,
+    justifyContent: 'space-between',
+  },
+  cardHora: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  cardTemp: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: 'bold',
+    marginVertical: 4,
+  },
+  cardIcone: {
+    fontSize: 26,
+    marginTop: 4,
+  },
+  nextForecast: {
+    width: '90%',
+    marginTop: 10,
+  },
+  nextTitle: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  nextCard: {
+    backgroundColor: '#ffffff20',
+    borderRadius: 16,
+    padding: 20,
+    alignItems: 'center',
+  },
+  nextDay: {
+    fontSize: 18,
+    color: '#fff',
+    marginBottom: 8,
+    fontWeight: '500',
+  },
+  nextIcon: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  nextTemp: {
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: '500',
+  },
 });
+
